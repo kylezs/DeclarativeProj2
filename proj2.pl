@@ -11,25 +11,41 @@ Description of the game:
 
 /* Test puzzles
 Valid 2
-1. 
+[[0, 8, 7], [7, 7, 1], [7, 1, 7]]
 Invalid 2
-1. 
+1. [[1,1,3], [1,1,1], [1,1,1]]
 
 
 Valid 3
 1. [[0, 14, 10, 35], [14, 7, 2, 1], [15, 3, 7, 5], [28, 4, 1, 7]]
+Solve:
+[[0, 14, 10, 35], [14, A, B, C], [15, D, E, F], [28, G, 1, I]]
 
 Invalid 3
 1. [[0, 14, 10, 35], [14, 7, 2, 1], [15, 3, 8, 5], [28, 4, 1, 7]]
 
 Valid 4
-1. [[0, 14, 20, 84, 48], [13, 1, 2, 7, 3], [72, 3, 1, 6, 4], [252, 7, 9, 1, 4], [48, 3, 8, 2, 1]]
+1. [[0, 17, 10, 54, 420], [42, 2, 1, 3, 7], [108, 1, 2, 9, 6], [16, 6, 3, 2, 5], [15, 8, 4, 1, 2]]
+Solve:
+[[0, 17, 10, 54, 420], [42, 2, 1, 3, 7], [108, 1, _, 9, 6], [16, _, 3, 2, 5], [15, _, _, _, 2]]
+[[0, 17, 10, 54, 420], [42, _, _, _, _], [108, 1, _, 9, 6], [16, _, 3, 2, _], [15, _, _, _, 2]]
+
+Invalid 4 (83 instead of 84)
+1. [[0, 14, 20, 83, 48], [13, 1, 2, 7, 3], [72, 3, 1, 6, 4], [252, 7, 9, 1, 4], [48, 3, 8, 2, 1]] (83 instead of 84)
+2. [[1,1,1,1,2], [1,1,1,1,1], [1,1,1,1,1], [1,1,1,1,1], [1,1,1,1,1]]
 
 Invalid 4
 */
+
+% Need to construct the puzzle first.
 puzzle_solution(Puzzle) :-
     diagonals_same(Puzzle),
-    valid_rows_rem_header(Puzzle).
+    maplist(same_length(Puzzle), Puzzle),
+    % Validate the rows
+    valid_rows_rem_header(Puzzle),
+    % Now validate the columns
+    transpose(Puzzle, T),
+    valid_rows_rem_header(T).
 
 % 2, 3, 4 square cases- MAYBE USE IF STATEMENT TO CHECK LENGTH AND THEN DECIDE WHICH TO USE, TO STOP CHECKPOINTS
 diagonals_same([[_, _, _], [_, X, _], [_, _, X]]).
@@ -46,13 +62,22 @@ valid_rows([Row|Rest]) :-
     valid_rows(Rest).
 
 valid_row(Row) :-
-    (   valid_sum(Row)
+    (   
+        distinct_1to9(Row),
+        (valid_sum(Row)
     ;   valid_product(Row)
+        )
     ).
+
+distinct_1to9([_|Row]) :-
+    all_distinct(Row),
+    Row ins 1..9.
+    
 
 % this may fail the other way, when we need this as a constraint, e.g. A + B + 3 = 7.
 valid_sum([Ans|Rest]) :-
-    sumlist(Rest, Ans).
+    sum(Rest, #=, Ans).
+
 
 valid_product([Ans|Rest]) :-
     prod_list(Rest, Ans).
@@ -60,6 +85,8 @@ valid_product([Ans|Rest]) :-
 prod_list([], 1).
 prod_list([H|T], Product) :-
     prod_list(T, Rest),
-    Product is H*Rest.
+    Product #= H*Rest.
 
-% !!!!!!!!!! next, transpose to validate columns
+% prod_list2([], 1).
+% prod_list([H|T], Product) :-
+
