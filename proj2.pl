@@ -3,6 +3,8 @@ File     : Proj2.pl
 Author   : Kyle Zsembery <k.zsembery@student.unimelb.edu.au>
 Purpose  : A solver for a magic square maths puzzle game
 
+==========================================================================
+
 Description of the puzzle:
 A puzzle is a square grid of integers.
 A valid/complete puzzle must adhere to these puzzle rules:
@@ -32,6 +34,7 @@ generated from those constraints.
 
 puzzle_solution(Puzzle) is the main method
 
+==========================================================================
 */
 
 % Constraint Logic Programming (Finite Domain) Library
@@ -54,15 +57,20 @@ Holds if the Puzzle satisfies all Puzzle rules
 puzzle_solution(Puzzle) :-
     % do first to drastically reduce solution space
     diagonals_same(Puzzle),
+
     % Just make sure of the puzzle shape (should be square)
     maplist(same_length(Puzzle), Puzzle),
+
     % Validate the rows
     valid_rows_rem_header(Puzzle),
+
     % Now validate the columns
     transpose(Puzzle, T),
     valid_rows_rem_header(T),
+
     % list of lists -> list of vars (for use in `labeling`)
     append(Puzzle, Vars),
+
     % using the above constraints, generate a solution (if it exists)
     % ffc option (from docs)
     % https://swish.swi-prolog.org/pldoc/man?predicate=labeling/2: 
@@ -130,6 +138,7 @@ Holds if Puzzle rules 1 and 2 hold
 distinct_1to9([_|Row]) :-
     % constraint for rule 2
     all_distinct(Row),
+
     % Contraint for rule 1
     Row ins 1..9.
     
