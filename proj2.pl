@@ -5,16 +5,23 @@ Purpose  : A solver for a magic square maths puzzle game
 
 Description of the puzzle:
 A puzzle is a square grid of integers.
-A valid/complete puzzle must adhere to these rules:
-- Only digits 1 - 9 to be used
-- Each row and each column contains no repeated digits
-- All squares down the top-left to bottom-right diaganol must contain the
+A valid/complete puzzle must adhere to these puzzle rules:
+1. Only digits 1 - 9 to be used
+2. Each row and each column contains no repeated digits
+3. All squares down the top-left to bottom-right diagonal must contain the
 same value
-- Puzzle headers contain EITHER the sum of the digits in the row/column 
-OR the product of the digits in the row/column (NB: the above rules do
-    not apply to puzzle headers. With upper left corner having no meaning)
+4 Puzzle headers contain EITHER 
+4.1 the sum of the digits (4.1) in the row/column 
+OR 
+4.2 The product of the digits in the row/column
+
+NB1: the above rules do not apply to puzzle headers. With upper left corner 
+having no meaning)
+
+NB2: These rules are referred to throughout the inline documentation
 
 ==========================================================================
+
 Description of this program:
 This program solves puzzles of the above type using Prolog's
 Constraint Logic Programming (Finite Domain) library capabilities.
@@ -25,49 +32,89 @@ generated from those constraints.
 
 puzzle_solution(Puzzle) is the main method
 
-`Puzzle` is input as a List of Lists, row by row, 
-e.g. For a 3x3
-[[_, H, H, H], [H, V, V, V], [H, V, V, V], [H, V, V, V]]
-where H = a header values and V = a puzzle value
-The values, Vs, may be bound or unbound. If unbound, 
-they will (if possible) be bound to satisfy the puzzle constraints,
-solving the puzzle.
 */
 
 % Constraint Logic Programming (Finite Domain) Library
 :- ensure_loaded(library(clpfd)).
 
-
-
+/*
+Input: The Puzzle as a List of Lists (of integers), row by row.
+e.g. For a 3x3
+[[-, H, H, H],
+ [H, V, V, V],
+ [H, V, V, V],
+ [H, V, V, V]]
+where H = a Header entry and V = a puzzle Value
+The header entries are always bound.
+The puzzle values may be bound or unbound. If unbound, 
+they will (if possible) be bound to satisfy the puzzle constraints,
+solving the puzzle.
+Holds if the Puzzle satisfies all Puzzle rules
+*/
 puzzle_solution(Puzzle) :-
+    % do first to drastically reduce solution space
     diagonals_same(Puzzle),
+    % Just make sure of the puzzle shape (should be square)
     maplist(same_length(Puzzle), Puzzle),
     % Validate the rows
     valid_rows_rem_header(Puzzle),
     % Now validate the columns
     transpose(Puzzle, T),
     valid_rows_rem_header(T),
+    % list of lists -> list of vars (for use in `labeling`)
     append(Puzzle, Vars),
+    % using the above constraints, generate a solution (if it exists)
+    % ffc option (from docs)
+    % https://swish.swi-prolog.org/pldoc/man?predicate=labeling/2: 
+    % Of the variables with smallest domains, the leftmost one participating 
+    % in most constraints is labeled next.
     labeling([ffc], Vars).
 
-% Can use some sort of labeling, here. NB: labeling method has ffc and ff options that will make it more efficient
-
 /*
-Constrain the the diaganol values to all be the same value for 2x2, 3x3
-and 4x4 puzzles */
-diagonals_same([[_, _, _], [_, X, _], [_, _, X]]).
-diagonals_same([[_, _, _, _], [_, X, _, _], [_, _, X, _], [_, _, _, X]]).
-diagonals_same([[_, _, _, _, _], [_, X, _, _, _], [_, _, X, _, _], [_, _, _, X, _], [_, _, _, _, X]]).
+Input: Puzzle (2x2, 3x3, 4x4)
+Constrain the the diagonal values to all be the same value (rule 3)
+*/
+diagonals_same([[_, _, _],
+                [_, X, _], 
+                [_, _, X]]
+                ).
+diagonals_same([[_, _, _, _],
+                [_, X, _, _], 
+                [_, _, X, _], 
+                [_, _, _, X]]
+                ).
+diagonals_same([[_, _, _, _, _],
+                [_, X, _, _, _],
+                [_, _, X, _, _],
+                [_, _, _, X, _],
+                [_, _, _, _, X]]
+                ).
 
-% The first row is the row of headers, can discard it. 
+/* 
+Input: Puzzle (or transposed puzzle for columns)
+Holds if the Puzzle has valid rows
+
+The first row of the puzzle (or column) is always just headers
+and so it can be removed
+*/
 valid_rows_rem_header([_|X]) :-
     valid_rows(X).
 
+/*
+Input: Puzzle rows (or columns) - minus first header row 
+Holds if all Puzzle rows are valid
+*/
 valid_rows([]).
 valid_rows([Row|Rest]) :-
     valid_row(Row),
     valid_rows(Rest).
 
+/* 
+Input: A single row, consisting of a header followed by the puzzle row
+Holds if Puzzle rules 1, 2 and 4 hold
+
+NB: Only ONE of 4.1 and 4.2 need to hold, thus OR and not AND
+*/
 valid_row(Row) :-
     (   
         distinct_1to9(Row),
@@ -76,72 +123,37 @@ valid_row(Row) :-
         )
     ).
 
+/* 
+Input: A single row, consisting of a header followed by the puzzle row
+Holds if Puzzle rules 1 and 2 hold
+*/
 distinct_1to9([_|Row]) :-
+    % constraint for rule 2
     all_distinct(Row),
+    % Contraint for rule 1
     Row ins 1..9.
     
 
-% this may fail the other way, when we need this as a constraint, e.g. A + B + 3 = 7.
+/*
+Input: A single row, consisting of a header followed by the puzzle row
+Holds if the header is equal to the sum of the row values (rule 4.1)
+*/
 valid_sum([Ans|Rest]) :-
+    % From clpfd
     sum(Rest, #=, Ans).
 
-
+/*
+Input: A single row, consisting of a header followed by the puzzle row
+Holds if the header is equal to the product of the row values (rule 4.2)
+*/
 valid_product([Ans|Rest]) :-
     prod_list(Rest, Ans).
 
+/*
+Input: List of integers, L, a Product, P
+Holds if the product of the ints in L are equal to P
+*/
 prod_list([], 1).
 prod_list([H|T], Product) :-
     prod_list(T, Rest),
     Product #= H*Rest.
-
-
-/* Test puzzles
-Valid 2
-[[0, 8, 7], [7, 7, 1], [7, 1, 7]]
-Invalid 2
-1. [[1,1,3], [1,1,1], [1,1,1]]
-
-2. [[0, 13, 12], [12, 6, 2], [42, 7, 6]]
-solve
-[[0, 13, 12], [12, _,_], [42, _,_]] (gets 2 solutions, we will never be given puzzles that give 2 solutions, but code can do it)
-
-
-Valid 3
-1. [[0, 14, 10, 35], [14, 7, 2, 1], [15, 3, 7, 5], [28, 4, 1, 7]]
-Solve:
-[[0, 14, 10, 35], [14, A, B, C], [15, D, E, F], [28, G, 1, I]]
-
-From Grok
-2. [[0,14,18,48],[20,_,_,_],[9,_,_,_],[126,_,_,_]]
-[[0,14,18,48],[20,A,B,C],[9,D,E,F],[126,G,H,I]]
-[[0,14,18,48],[20,3,9,8],[9,4,3,2],[126,7,6,3]]
-
-3. [[0,24,13,126], [84, 6, 2, 7], [10, 1, 6, 3], [120, 4, 5, 6]]
-Solve
-[[0,24,13,126], [84, _,_,_], [10, _,_,_], [120, _,_,_]]
-
-Invalid 3
-1. [[0, 14, 10, 35], [14, 7, 2, 1], [15, 3, 8, 5], [28, 4, 1, 7]]
-
-Valid 4
-1. [[0, 17, 10, 54, 420], [42, 2, 1, 3, 7], [108, 1, 2, 9, 6], [16, 6, 3, 2, 5], [15, 8, 4, 1, 2]]
-Solve:
-[[0, 17, 10, 54, 420], [42, 2, 1, 3, 7], [108, 1, _, 9, 6], [16, _, 3, 2, 5], [15, _, _, _, 2]]
-[[0, 17, 10, 54, 420], [42, _, _, _, _], [108, 1, _, 9, 6], [16, _, 3, 2, _], [15, _, _, _, 2]]
-
-2. [[0, 15, 630, 24, 168], [576, 2, 9, 8, 4], [15, 1, 2, 5, 7], [120, 4, 5, 2, 3], [26, 8, 7, 9, 2]]
-Solve
-[[0, 15, 630, 24, 168], [576, _, _, _, _], [15, _, _, _, _], [120, _, _, _, _], [26, _, _, _, _]]
-
-3. [[0, 20, 384, 384, 20], [384, 2, 4, 8, 6], [20, 8, 2, 6, 4], [20, 4, 6, 2, 8], [384, 6, 8, 4, 2]]
-Solve
-[[0, 20, 384, 384, 20], [384, _, _, _, _], [20, _, _, _, _], [20, _, _, _, _], [384, _, _, _, _]] (very many solutions)
-[[0, 20, 384, 384, 20], [384, _, 4, _, _], [20, 8, _, _, 4], [20, _, _, 2, _], [384, _, _, _, _]] (one solution)
-
-3. 
-Invalid 4 (83 instead of 84)
-1. [[0, 14, 20, 83, 48], [13, 1, 2, 7, 3], [72, 3, 1, 6, 4], [252, 7, 9, 1, 4], [48, 3, 8, 2, 1]] (83 instead of 84)
-2. [[1,1,1,1,2], [1,1,1,1,1], [1,1,1,1,1], [1,1,1,1,1], [1,1,1,1,1]]
-
-Invalid 4
-*/
